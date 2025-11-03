@@ -39,14 +39,15 @@ class CanvasRenderer {
             this.ctx.drawImage(templateImage, 0, 0, this.canvas.width, this.canvas.height);
         }
 
+        // 1.5. Limpa a área do nome no template ANTES de desenhar foto e label (remove nome que vem no PNG)
+        // Faz isso antes para garantir que o nome do template PNG seja removido completamente
+        if (labelEditor && labelEditor.getText()) {
+            this.clearNameArea(labelEditor);
+        }
+
         // 2. Desenha a foto (com máscara aplicada)
         if (photoHandler && photoHandler.hasPhoto()) {
             photoHandler.renderToCanvas(this.ctx, this.canvas.width, this.canvas.height);
-        }
-
-        // 2.5. Limpa a área do nome no template antes de desenhar a label (remove nome que vem no PNG)
-        if (labelEditor && labelEditor.getText()) {
-            this.clearNameArea(labelEditor);
         }
 
         // 3. Desenha a label do nome
@@ -148,7 +149,7 @@ class CanvasRenderer {
 
     /**
      * Limpa a área onde o nome será renderizado (remove o nome que vem no template PNG)
-     * Usa técnica de "inpainting" simples: analisa a cor de fundo ao redor e preenche a área
+     * Usa técnica agressiva para remover texto em múltiplas posições possíveis
      */
     clearNameArea(labelEditor) {
         if (!labelEditor) return;
@@ -169,77 +170,76 @@ class CanvasRenderer {
         const textWidth = textMetrics.width;
         const textHeight = labelData.fontSize;
         
-        // Calcula área expandida para limpar (com margem maior para capturar todo o texto original)
-        const margin = 40; // Margem maior para garantir que pega todo o texto do template
-        const clearX = Math.max(0, labelData.x - margin);
-        const clearY = Math.max(0, labelData.y - margin);
-        const clearWidth = Math.min(this.canvas.width - clearX, textWidth + (margin * 2));
-        const clearHeight = Math.min(this.canvas.height - clearY, textHeight + (margin * 2));
+        // Para o template OURO, o nome pode estar no canto superior esquerdo da faixa amarela
+        // Mas também pode haver texto duplicado mais à direita. Limpamos uma área bem maior
+        const marginX = Math.max(150, textWidth * 0.8); // Margem horizontal bem generosa (até 80% do texto)
+        const marginY = Math.max(100, textHeight * 2); // Margem vertical também generosa
         
-        // Analisa a cor de fundo ao redor da área do texto (pega pixels das bordas)
-        const sampleSize = 5;
+        // Primeira área: onde o label está posicionado
+        const clearX1 = Math.max(0, labelData.x - marginX);
+        const clearY1 = Math.max(0, labelData.y - marginY);
+        const clearWidth1 = Math.min(this.canvas.width - clearX1, textWidth + (marginX * 2));
+        const clearHeight1 = Math.min(this.canvas.height - clearY1, textHeight + (marginY * 2));
+        
+        // Segunda área: mais à direita (caso haja duplicação)
+        // No template OURO, pode haver texto também à direita da faixa amarela
+        const clearX2 = Math.max(0, this.canvas.width * 0.4); // Começa em 40% da largura
+        const clearY2 = Math.max(0, labelData.y - marginY);
+        const clearWidth2 = Math.min(this.canvas.width - clearX2, this.canvas.width * 0.5);
+        const clearHeight2 = clearHeight1;
+        
+        // Método agressivo: usa destination-out diretamente (remove pixels completamente)
+        // Limpa ambas as áreas possíveis onde o texto pode estar
+        this.ctx.globalCompositeOperation = 'destination-out';
+        
+        // Primeira área: posição do label
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+        this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
+        this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1); // Duplica para garantir
+        
+        // Segunda área: possível duplicação à direita
+        this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
+        this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2); // Duplica para garantir
+        
+        // Restaura modo de composição normal
+        this.ctx.globalCompositeOperation = 'source-over';
+        
+        // Amostra cor de fundo da primeira área para preencher
+        const sampleSize = 10;
         let rSum = 0, gSum = 0, bSum = 0, aSum = 0, sampleCount = 0;
         
-        // Amostra pixels das bordas superior e inferior
-        for (let x = clearX; x < clearX + clearWidth; x += sampleSize) {
-            // Borda superior
-            if (clearY - sampleSize >= 0) {
-                const pixelData = this.ctx.getImageData(x, clearY - sampleSize, 1, 1);
-                rSum += pixelData.data[0];
-                gSum += pixelData.data[1];
-                bSum += pixelData.data[2];
-                aSum += pixelData.data[3];
-                sampleCount++;
-            }
-            // Borda inferior
-            if (clearY + clearHeight + sampleSize < this.canvas.height) {
-                const pixelData = this.ctx.getImageData(x, clearY + clearHeight + sampleSize, 1, 1);
-                rSum += pixelData.data[0];
-                gSum += pixelData.data[1];
-                bSum += pixelData.data[2];
-                aSum += pixelData.data[3];
-                sampleCount++;
-            }
-        }
-        
-        // Amostra pixels das bordas laterais
-        for (let y = clearY; y < clearY + clearHeight; y += sampleSize) {
-            // Borda esquerda
-            if (clearX - sampleSize >= 0) {
-                const pixelData = this.ctx.getImageData(clearX - sampleSize, y, 1, 1);
-                rSum += pixelData.data[0];
-                gSum += pixelData.data[1];
-                bSum += pixelData.data[2];
-                aSum += pixelData.data[3];
-                sampleCount++;
-            }
-            // Borda direita
-            if (clearX + clearWidth + sampleSize < this.canvas.width) {
-                const pixelData = this.ctx.getImageData(clearX + clearWidth + sampleSize, y, 1, 1);
-                rSum += pixelData.data[0];
-                gSum += pixelData.data[1];
-                bSum += pixelData.data[2];
-                aSum += pixelData.data[3];
-                sampleCount++;
+        // Amostra pixels ao redor da primeira área
+        for (let x = clearX1 - sampleSize; x < clearX1 + clearWidth1 + sampleSize; x += sampleSize) {
+            if (x >= 0 && x < this.canvas.width) {
+                if (clearY1 - sampleSize >= 0) {
+                    const pixelData = this.ctx.getImageData(x, clearY1 - sampleSize, 1, 1);
+                    rSum += pixelData.data[0];
+                    gSum += pixelData.data[1];
+                    bSum += pixelData.data[2];
+                    aSum += pixelData.data[3];
+                    sampleCount++;
+                }
+                if (clearY1 + clearHeight1 + sampleSize < this.canvas.height) {
+                    const pixelData = this.ctx.getImageData(x, clearY1 + clearHeight1 + sampleSize, 1, 1);
+                    rSum += pixelData.data[0];
+                    gSum += pixelData.data[1];
+                    bSum += pixelData.data[2];
+                    aSum += pixelData.data[3];
+                    sampleCount++;
+                }
             }
         }
         
-        // Calcula cor média de fundo
+        // Preenche as áreas limpas com a cor de fundo amostrada
         if (sampleCount > 0) {
             const avgR = Math.round(rSum / sampleCount);
             const avgG = Math.round(gSum / sampleCount);
             const avgB = Math.round(bSum / sampleCount);
             const avgA = Math.round(aSum / sampleCount) / 255;
             
-            // Preenche a área com a cor de fundo média
             this.ctx.fillStyle = `rgba(${avgR}, ${avgG}, ${avgB}, ${avgA})`;
-            this.ctx.fillRect(clearX, clearY, clearWidth, clearHeight);
-        } else {
-            // Fallback: usa destination-out se não conseguir amostrar
-            this.ctx.globalCompositeOperation = 'destination-out';
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-            this.ctx.fillRect(clearX, clearY, clearWidth, clearHeight);
-            this.ctx.globalCompositeOperation = 'source-over';
+            this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
+            this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
         }
         
         this.ctx.restore();

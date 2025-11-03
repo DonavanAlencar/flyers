@@ -27,7 +27,7 @@ const TEMPLATE_MAP = {
             color: '#FFFFFF',
             letterSpacing: '2px',
             fontFamily: 'Arial, sans-serif',
-            textTransform: 'uppercase'
+            textTransform: 'none' // Mantém o case original
         },
         // Template OURO não usa frase
         usesPhrase: false
@@ -78,7 +78,7 @@ const TEMPLATE_MAP = {
             color: '#FFFFFF',
             letterSpacing: '2px',
             fontFamily: 'Arial, sans-serif',
-            textTransform: 'uppercase'
+            textTransform: 'none' // Mantém o case original
         },
         usesPhrase: true
     },

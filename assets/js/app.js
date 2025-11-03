@@ -83,7 +83,7 @@ class FlyersApp {
 
         // Input de nome
         this.nomeInput.addEventListener('input', (e) => {
-            const text = e.target.value.toUpperCase();
+            const text = e.target.value; // Mantém o case original
             this.labelEditor.setText(text);
             
             // Mostra/esconde controles da label
@@ -232,13 +232,17 @@ class FlyersApp {
             // Mostra controles de foto
             this.photoControls.style.display = 'block';
             
-            // Atualiza máscara se necessário
+            // Atualiza máscara se necessário (isso já chama fitPhotoToMask automaticamente)
             const mask = this.templateEngine.getPhotoMask();
             if (mask) {
                 this.photoHandler.setMask(mask);
+            } else {
+                // Se não há máscara ainda, tenta ajustar depois que o template carregar
+                // Mas normalmente a máscara já está definida ao carregar template
+                this.photoHandler.fitPhotoToMask();
             }
             
-            // Gera preview automático
+            // Gera preview automático após ajustar foto
             await this.generatePreview();
             
         } catch (error) {
@@ -273,7 +277,8 @@ class FlyersApp {
 
     updateLabelPreview() {
         const text = this.labelEditor.getText();
-        this.labelText.textContent = text || 'NOME DO PARTICIPANTE';
+        // Mantém o case original do texto
+        this.labelText.textContent = text || 'Nome do Participante';
         
         // Atualiza estilo conforme label editor
         const labelData = this.labelEditor.getLabelData();
@@ -309,37 +314,31 @@ class FlyersApp {
             if (this.photoHandler.hasPhoto()) {
                 isDragging = true;
                 const rect = this.previewCanvas.getBoundingClientRect();
+                // Converte coordenadas do mouse para coordenadas do canvas
                 const scaleX = this.canvasRenderer.canvas.width / rect.width;
                 const scaleY = this.canvasRenderer.canvas.height / rect.height;
                 
                 startX = (e.clientX - rect.left) * scaleX;
                 startY = (e.clientY - rect.top) * scaleY;
                 
-                const mask = this.photoHandler.mask;
-                if (mask) {
-                    const maskX = startX - mask.x;
-                    const maskY = startY - mask.y;
-                    this.photoHandler.startDrag(maskX, maskY);
-                }
+                // Passa coordenadas do canvas diretamente
+                this.photoHandler.startDrag(startX, startY);
             }
         });
         
         this.previewCanvas.addEventListener('mousemove', (e) => {
             if (isDragging && this.photoHandler.hasPhoto()) {
                 const rect = this.previewCanvas.getBoundingClientRect();
+                // Converte coordenadas do mouse para coordenadas do canvas
                 const scaleX = this.canvasRenderer.canvas.width / rect.width;
                 const scaleY = this.canvasRenderer.canvas.height / rect.height;
                 
                 const currentX = (e.clientX - rect.left) * scaleX;
                 const currentY = (e.clientY - rect.top) * scaleY;
                 
-                const mask = this.photoHandler.mask;
-                if (mask) {
-                    const maskX = currentX - mask.x;
-                    const maskY = currentY - mask.y;
-                    this.photoHandler.updateDrag(maskX, maskY);
-                    this.generatePreview();
-                }
+                // Passa coordenadas do canvas diretamente
+                this.photoHandler.updateDrag(currentX, currentY);
+                this.generatePreview();
             }
         });
         

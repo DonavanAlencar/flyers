@@ -53,13 +53,11 @@ class LabelEditor {
     }
 
     /**
-     * Define o texto da label
+     * Define o texto da label (mantém o case original)
      */
     setText(text) {
-        // Aplica uppercase se necessário
-        this.labelData.text = this.labelData.textTransform === 'uppercase' 
-            ? text.toUpperCase() 
-            : text;
+        // Mantém o texto como digitado (não força uppercase)
+        this.labelData.text = text;
     }
 
     /**
@@ -200,7 +198,7 @@ class LabelEditor {
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
 
-        // Aplica transformação de texto (uppercase já aplicado no setText)
+        // Renderiza o texto mantendo o case original (sem uppercase forçado)
         const text = this.labelData.text;
         
         // Letter spacing não é suportado diretamente no canvas, então renderiza caractere por caractere
@@ -216,7 +214,7 @@ class LabelEditor {
                 currentX += metrics.width + letterSpacing;
             }
         } else {
-            // Sem letter spacing, renderiza normalmente
+            // Sem letter spacing, renderiza normalmente (mantém case original)
             ctx.fillText(text, currentX, this.labelData.y);
         }
 
