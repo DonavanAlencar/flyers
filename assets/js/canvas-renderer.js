@@ -34,20 +34,29 @@ class CanvasRenderer {
         // Limpa o canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 1. Desenha o template base
+        // Prepara camada do template (com limpeza da área do nome) antes de desenhar a foto
+        let templateLayer = null;
         if (templateImage) {
-            this.ctx.drawImage(templateImage, 0, 0, this.canvas.width, this.canvas.height);
+            templateLayer = document.createElement('canvas');
+            templateLayer.width = this.canvas.width;
+            templateLayer.height = this.canvas.height;
+
+            const templateCtx = templateLayer.getContext('2d');
+            templateCtx.drawImage(templateImage, 0, 0, this.canvas.width, this.canvas.height);
+
+            if (labelEditor && labelEditor.getText()) {
+                this.clearNameArea(labelEditor, templateCtx);
+            }
         }
 
-        // 1.5. Limpa a área do nome no template ANTES de desenhar foto e label (remove nome que vem no PNG)
-        // Faz isso antes para garantir que o nome do template PNG seja removido completamente
-        if (labelEditor && labelEditor.getText()) {
-            this.clearNameArea(labelEditor);
-        }
-
-        // 2. Desenha a foto (com máscara aplicada)
+        // 1. Desenha primeiro a foto (com máscara aplicada)
         if (photoHandler && photoHandler.hasPhoto()) {
             photoHandler.renderToCanvas(this.ctx, this.canvas.width, this.canvas.height);
+        }
+
+        // 2. Desenha o template sobre a foto (a transparência controla o que é visível)
+        if (templateLayer) {
+            this.ctx.drawImage(templateLayer, 0, 0, this.canvas.width, this.canvas.height);
         }
 
         // 3. Desenha a label do nome
@@ -151,14 +160,14 @@ class CanvasRenderer {
      * Limpa a área onde o nome será renderizado (remove o nome que vem no template PNG)
      * Usa técnica agressiva para remover texto em múltiplas posições possíveis
      */
-    clearNameArea(labelEditor) {
+    clearNameArea(labelEditor, ctx = this.ctx) {
         if (!labelEditor) return;
 
         const labelData = labelEditor.getLabelData();
         if (!labelData.text) return;
 
         // Salva estado do contexto
-        this.ctx.save();
+        ctx.save();
 
         // Cria um canvas temporário para medir o texto
         const tempCanvas = document.createElement('canvas');
@@ -176,51 +185,52 @@ class CanvasRenderer {
         const marginY = Math.max(100, textHeight * 2); // Margem vertical também generosa
         
         // Primeira área: onde o label está posicionado
+        const targetCanvas = ctx.canvas || this.canvas;
         const clearX1 = Math.max(0, labelData.x - marginX);
         const clearY1 = Math.max(0, labelData.y - marginY);
-        const clearWidth1 = Math.min(this.canvas.width - clearX1, textWidth + (marginX * 2));
-        const clearHeight1 = Math.min(this.canvas.height - clearY1, textHeight + (marginY * 2));
-        
+        const clearWidth1 = Math.min(targetCanvas.width - clearX1, textWidth + (marginX * 2));
+        const clearHeight1 = Math.min(targetCanvas.height - clearY1, textHeight + (marginY * 2));
+
         // Segunda área: mais à direita (caso haja duplicação)
         // No template OURO, pode haver texto também à direita da faixa amarela
-        const clearX2 = Math.max(0, this.canvas.width * 0.4); // Começa em 40% da largura
+        const clearX2 = Math.max(0, targetCanvas.width * 0.4); // Começa em 40% da largura
         const clearY2 = Math.max(0, labelData.y - marginY);
-        const clearWidth2 = Math.min(this.canvas.width - clearX2, this.canvas.width * 0.5);
+        const clearWidth2 = Math.min(targetCanvas.width - clearX2, targetCanvas.width * 0.5);
         const clearHeight2 = clearHeight1;
-        
+
         // Método agressivo: usa destination-out diretamente (remove pixels completamente)
         // Limpa ambas as áreas possíveis onde o texto pode estar
-        this.ctx.globalCompositeOperation = 'destination-out';
-        
+        ctx.globalCompositeOperation = 'destination-out';
+
         // Primeira área: posição do label
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-        this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
-        this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1); // Duplica para garantir
-        
+        ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+        ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
+        ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1); // Duplica para garantir
+
         // Segunda área: possível duplicação à direita
-        this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
-        this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2); // Duplica para garantir
-        
+        ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
+        ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2); // Duplica para garantir
+
         // Restaura modo de composição normal
-        this.ctx.globalCompositeOperation = 'source-over';
-        
+        ctx.globalCompositeOperation = 'source-over';
+
         // Amostra cor de fundo da primeira área para preencher
         const sampleSize = 10;
         let rSum = 0, gSum = 0, bSum = 0, aSum = 0, sampleCount = 0;
-        
+
         // Amostra pixels ao redor da primeira área
         for (let x = clearX1 - sampleSize; x < clearX1 + clearWidth1 + sampleSize; x += sampleSize) {
-            if (x >= 0 && x < this.canvas.width) {
+            if (x >= 0 && x < targetCanvas.width) {
                 if (clearY1 - sampleSize >= 0) {
-                    const pixelData = this.ctx.getImageData(x, clearY1 - sampleSize, 1, 1);
+                    const pixelData = ctx.getImageData(x, clearY1 - sampleSize, 1, 1);
                     rSum += pixelData.data[0];
                     gSum += pixelData.data[1];
                     bSum += pixelData.data[2];
                     aSum += pixelData.data[3];
                     sampleCount++;
                 }
-                if (clearY1 + clearHeight1 + sampleSize < this.canvas.height) {
-                    const pixelData = this.ctx.getImageData(x, clearY1 + clearHeight1 + sampleSize, 1, 1);
+                if (clearY1 + clearHeight1 + sampleSize < targetCanvas.height) {
+                    const pixelData = ctx.getImageData(x, clearY1 + clearHeight1 + sampleSize, 1, 1);
                     rSum += pixelData.data[0];
                     gSum += pixelData.data[1];
                     bSum += pixelData.data[2];
@@ -237,12 +247,12 @@ class CanvasRenderer {
             const avgB = Math.round(bSum / sampleCount);
             const avgA = Math.round(aSum / sampleCount) / 255;
             
-            this.ctx.fillStyle = `rgba(${avgR}, ${avgG}, ${avgB}, ${avgA})`;
-            this.ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
-            this.ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
+            ctx.fillStyle = `rgba(${avgR}, ${avgG}, ${avgB}, ${avgA})`;
+            ctx.fillRect(clearX1, clearY1, clearWidth1, clearHeight1);
+            ctx.fillRect(clearX2, clearY2, clearWidth2, clearHeight2);
         }
-        
-        this.ctx.restore();
+
+        ctx.restore();
     }
 
     /**
@@ -265,4 +275,3 @@ class CanvasRenderer {
 }
 
 export default CanvasRenderer;
-
