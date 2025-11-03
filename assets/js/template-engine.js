@@ -206,7 +206,15 @@ class TemplateEngine {
     /**
      * Identifica automaticamente a área transparente do template para usar como máscara
      */
-    computePhotoMaskFromImage(image, alphaThreshold = 8, minPixelThreshold = 500) {
+    computePhotoMaskFromImage(
+        image,
+        {
+            baseAlphaThreshold = 10,
+            extendedAlphaThreshold = 220,
+            rowCoverageRatio = 0.6,
+            minPixelThreshold = 500
+        } = {}
+    ) {
         try {
             const width = image.naturalWidth;
             const height = image.naturalHeight;
@@ -220,34 +228,120 @@ class TemplateEngine {
 
             const { data } = tempCtx.getImageData(0, 0, width, height);
 
-            let minX = width;
-            let minY = height;
-            let maxX = -1;
-            let maxY = -1;
-            let transparentCount = 0;
+            let baseMinX = width;
+            let baseMinY = height;
+            let baseMaxX = -1;
+            let baseMaxY = -1;
+            let baseCount = 0;
+
+            let softMinX = width;
+            let softMinY = height;
+            let softMaxX = -1;
+            let softMaxY = -1;
+            let softCount = 0;
+
+            const softRowCounts = new Array(height).fill(0);
 
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
-                    const alpha = data[(y * width + x) * 4 + 3];
-                    if (alpha <= alphaThreshold) {
-                        transparentCount++;
-                        if (x < minX) minX = x;
-                        if (y < minY) minY = y;
-                        if (x > maxX) maxX = x;
-                        if (y > maxY) maxY = y;
+                    const offset = (y * width + x) * 4;
+                    const alpha = data[offset + 3];
+
+                    if (alpha <= extendedAlphaThreshold) {
+                        softCount++;
+                        softRowCounts[y]++;
+
+                        if (x < softMinX) softMinX = x;
+                        if (y < softMinY) softMinY = y;
+                        if (x > softMaxX) softMaxX = x;
+                        if (y > softMaxY) softMaxY = y;
+
+                        if (alpha <= baseAlphaThreshold) {
+                            baseCount++;
+                            if (x < baseMinX) baseMinX = x;
+                            if (y < baseMinY) baseMinY = y;
+                            if (x > baseMaxX) baseMaxX = x;
+                            if (y > baseMaxY) baseMaxY = y;
+                        }
                     }
                 }
             }
 
-            if (transparentCount < minPixelThreshold || maxX < minX || maxY < minY) {
+            const hasSoftArea = softCount >= minPixelThreshold;
+            const hasBaseArea = baseCount >= minPixelThreshold / 3; // menos pixels totalmente transparentes
+
+            if (!hasSoftArea && !hasBaseArea) {
+                return null;
+            }
+
+            let finalMinX;
+            let finalMinY;
+            let finalMaxX;
+            let finalMaxY;
+
+            if (hasBaseArea) {
+                finalMinX = baseMinX;
+                finalMinY = baseMinY;
+                finalMaxX = baseMaxX;
+                finalMaxY = baseMaxY;
+            } else {
+                finalMinX = softMinX;
+                finalMinY = softMinY;
+                finalMaxX = softMaxX;
+                finalMaxY = softMaxY;
+            }
+
+            const rowCoverageThreshold = Math.max(1, Math.floor(width * rowCoverageRatio));
+
+            for (let y = finalMinY - 1; y >= 0; y--) {
+                if (softRowCounts[y] >= rowCoverageThreshold) {
+                    finalMinY = y;
+                } else {
+                    break;
+                }
+            }
+
+            for (let y = finalMaxY + 1; y < height; y++) {
+                if (softRowCounts[y] >= rowCoverageThreshold) {
+                    finalMaxY = y;
+                } else {
+                    break;
+                }
+            }
+
+            finalMinX = Math.max(0, finalMinX);
+            finalMinY = Math.max(0, finalMinY);
+            finalMaxX = Math.min(width - 1, finalMaxX);
+            finalMaxY = Math.min(height - 1, finalMaxY);
+
+            const recomputeBounds = { minX: width, minY: height, maxX: -1, maxY: -1 };
+            for (let y = finalMinY; y <= finalMaxY; y++) {
+                for (let x = 0; x < width; x++) {
+                    const alpha = data[(y * width + x) * 4 + 3];
+                    if (alpha <= extendedAlphaThreshold) {
+                        if (x < recomputeBounds.minX) recomputeBounds.minX = x;
+                        if (x > recomputeBounds.maxX) recomputeBounds.maxX = x;
+                        if (y < recomputeBounds.minY) recomputeBounds.minY = y;
+                        if (y > recomputeBounds.maxY) recomputeBounds.maxY = y;
+                    }
+                }
+            }
+
+            if (recomputeBounds.maxX < recomputeBounds.minX || recomputeBounds.maxY < recomputeBounds.minY) {
                 return null;
             }
 
             const padding = 2;
-            const paddedX = Math.max(0, minX - padding);
-            const paddedY = Math.max(0, minY - padding);
-            const paddedWidth = Math.min(width - paddedX, maxX - minX + 1 + padding * 2);
-            const paddedHeight = Math.min(height - paddedY, maxY - minY + 1 + padding * 2);
+            const paddedX = Math.max(0, recomputeBounds.minX - padding);
+            const paddedY = Math.max(0, recomputeBounds.minY - padding);
+            const paddedWidth = Math.min(
+                width - paddedX,
+                recomputeBounds.maxX - recomputeBounds.minX + 1 + padding * 2
+            );
+            const paddedHeight = Math.min(
+                height - paddedY,
+                recomputeBounds.maxY - recomputeBounds.minY + 1 + padding * 2
+            );
 
             return {
                 type: 'rect',
