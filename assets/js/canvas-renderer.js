@@ -57,7 +57,28 @@ class CanvasRenderer {
             this.ctx.drawImage(templateLayer, 0, 0, this.canvas.width, this.canvas.height);
         }
 
-        // 3. Não desenha o nome no canvas (será exibido apenas via overlay HTML)
+        // 3. Desenha a label fixa do nome no canvas usando o preset do template
+        if (labelEditor && labelEditor.getText) {
+            const text = labelEditor.getText();
+            if (text) {
+                // Obtém preset escalado do template atual
+                const templateEngine = window?.flyersApp?.templateEngine;
+                const namePreset = templateEngine?.getNamePreset?.();
+                if (namePreset) {
+                    const labelData = labelEditor.getLabelData ? labelEditor.getLabelData() : {};
+                    this.ctx.save();
+                    this.ctx.textAlign = 'left';
+                    this.ctx.textBaseline = 'top';
+                    this.ctx.fillStyle = labelData.color || namePreset.color || '#FFFFFF';
+                    const fontWeight = labelData.fontWeight || namePreset.fontWeight || '700';
+                    const fontFamily = labelData.fontFamily || namePreset.fontFamily || 'Arial, sans-serif';
+                    const size = labelData.fontSize || namePreset.fontSize || 48;
+                    this.ctx.font = `${fontWeight} ${size}px ${fontFamily}`;
+                    this.ctx.fillText(text, namePreset.x || 0, namePreset.y || 0);
+                    this.ctx.restore();
+                }
+            }
+        }
 
         logger.log('Renderização concluída');
     }

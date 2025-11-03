@@ -65,7 +65,6 @@ class FlyersApp {
         this.resetLabelBtn = document.getElementById('reset-label-btn');
         
         // Botões de ação
-        this.generatePreviewBtn = document.getElementById('generate-preview-btn');
         this.downloadJpgBtn = document.getElementById('download-jpg-btn');
         
         // Canvas e overlay
@@ -90,7 +89,8 @@ class FlyersApp {
             // Mostra/esconde controles da label
             if (text.length > 0) {
                 this.labelControls.style.display = 'block';
-                this.updateFixedName();
+                // Não usar overlay fixa; renderizar diretamente no canvas
+                this.fixedNameText.style.display = 'none';
             } else {
                 this.labelControls.style.display = 'none';
                 this.fixedNameText.style.display = 'none';
@@ -126,26 +126,20 @@ class FlyersApp {
         // Controles de label
         this.fontIncreaseBtn.addEventListener('click', () => {
             this.labelEditor.increaseFontSize(2);
-            this.updateFixedName();
             this.generatePreview();
         });
         
         this.fontDecreaseBtn.addEventListener('click', () => {
             this.labelEditor.decreaseFontSize(2);
-            this.updateFixedName();
             this.generatePreview();
         });
         
         this.resetLabelBtn.addEventListener('click', () => {
             this.labelEditor.reset();
-            this.updateFixedName();
             this.generatePreview();
         });
 
-        // Botões principais
-        this.generatePreviewBtn.addEventListener('click', () => {
-            this.generatePreview();
-        });
+        // Botões principais: preview é automático, não há botão de gerar
         
         this.downloadJpgBtn.addEventListener('click', async () => {
             await this.downloadJPG();
@@ -204,8 +198,8 @@ class FlyersApp {
             // Atualiza UI
             this.templateInfo.textContent = `Template: ${templateName}`;
             this.templateSelect.value = templateName;
-            // Atualiza o texto fixo no topo esquerdo
-            this.updateFixedName();
+            // Não usar overlay; apenas canvas
+            this.fixedNameText.style.display = 'none';
             
             // Se já tem foto e nome, gera preview
             if (this.photoHandler.hasPhoto() || this.nomeInput.value) {
@@ -518,7 +512,6 @@ class FlyersApp {
                 } else {
                     this.labelEditor.decreaseFontSize(2);
                 }
-                this.updateFixedName();
                 this.generatePreview();
             }
         }
