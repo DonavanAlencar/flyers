@@ -126,19 +126,19 @@ class FlyersApp {
         // Controles de label
         this.fontIncreaseBtn.addEventListener('click', () => {
             this.labelEditor.increaseFontSize(2);
-            this.updateLabelPreview();
+            this.updateFixedName();
             this.generatePreview();
         });
         
         this.fontDecreaseBtn.addEventListener('click', () => {
             this.labelEditor.decreaseFontSize(2);
-            this.updateLabelPreview();
+            this.updateFixedName();
             this.generatePreview();
         });
         
         this.resetLabelBtn.addEventListener('click', () => {
             this.labelEditor.reset();
-            this.updateLabelPreview();
+            this.updateFixedName();
             this.generatePreview();
         });
 
@@ -251,14 +251,16 @@ class FlyersApp {
         // Deslocamento do canvas dentro do container + posição escalada
         const left = this.previewCanvas.offsetLeft + (preset.x || 0) * scaleX;
         const top = this.previewCanvas.offsetTop + (preset.y || 0) * scaleY;
-        const fontSizePx = (preset.fontSize || 48) * scaleY;
+        const labelData = this.labelEditor.getLabelData();
+        const baseFont = labelData.fontSize || preset.fontSize || 48;
+        const fontSizePx = baseFont * scaleY;
 
         this.fixedNameText.style.left = `${left}px`;
         this.fixedNameText.style.top = `${top}px`;
         this.fixedNameText.style.fontSize = `${fontSizePx}px`;
-        this.fixedNameText.style.fontWeight = preset.fontWeight || '700';
-        this.fixedNameText.style.letterSpacing = preset.letterSpacing || '2px';
-        this.fixedNameText.style.color = preset.color || '#FFFFFF';
+        this.fixedNameText.style.fontWeight = labelData.fontWeight || preset.fontWeight || '700';
+        this.fixedNameText.style.letterSpacing = labelData.letterSpacing || preset.letterSpacing || '2px';
+        this.fixedNameText.style.color = labelData.color || preset.color || '#FFFFFF';
         this.fixedNameText.textContent = text;
         this.fixedNameText.style.display = 'block';
     }
@@ -516,7 +518,7 @@ class FlyersApp {
                 } else {
                     this.labelEditor.decreaseFontSize(2);
                 }
-                this.updateLabelPreview();
+                this.updateFixedName();
                 this.generatePreview();
             }
         }
