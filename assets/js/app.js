@@ -70,6 +70,7 @@ class FlyersApp {
         
         // Canvas e overlay
         this.previewCanvas = document.getElementById('preview-canvas');
+        this.fixedNameText = document.getElementById('fixed-name-text');
         this.labelOverlay = document.getElementById('label-overlay');
         this.labelBox = document.getElementById('label-box');
         this.labelText = document.getElementById('label-text');
@@ -89,10 +90,13 @@ class FlyersApp {
             // Mostra/esconde controles da label
             if (text.length > 0) {
                 this.labelControls.style.display = 'block';
-                this.updateLabelPreview();
+                this.updateFixedName();
             } else {
                 this.labelControls.style.display = 'none';
+                this.fixedNameText.style.display = 'none';
             }
+            // Re-renderiza para refletir demais camadas
+            this.generatePreview();
         });
 
         // Upload de foto
@@ -200,6 +204,8 @@ class FlyersApp {
             // Atualiza UI
             this.templateInfo.textContent = `Template: ${templateName}`;
             this.templateSelect.value = templateName;
+            // Atualiza o texto fixo no topo esquerdo
+            this.updateFixedName();
             
             // Se já tem foto e nome, gera preview
             if (this.photoHandler.hasPhoto() || this.nomeInput.value) {
@@ -222,6 +228,39 @@ class FlyersApp {
         } finally {
             this.isLoading = false;
         }
+    }
+
+    updateFixedName() {
+        const text = this.labelEditor.getText();
+        if (!text) {
+            this.fixedNameText.style.display = 'none';
+            return;
+        }
+
+        // Usa o preset do template (posição base no canvas)
+        const preset = this.templateEngine.getNamePreset();
+        const canvasEl = this.canvasRenderer?.canvas;
+        if (!preset || !canvasEl) return;
+
+        const container = this.previewCanvas.parentElement;
+        const canvasRect = this.previewCanvas.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const scaleX = canvasRect.width / canvasEl.width;
+        const scaleY = canvasRect.height / canvasEl.height;
+
+        // Deslocamento do canvas dentro do container + posição escalada
+        const left = this.previewCanvas.offsetLeft + (preset.x || 0) * scaleX;
+        const top = this.previewCanvas.offsetTop + (preset.y || 0) * scaleY;
+        const fontSizePx = (preset.fontSize || 48) * scaleY;
+
+        this.fixedNameText.style.left = `${left}px`;
+        this.fixedNameText.style.top = `${top}px`;
+        this.fixedNameText.style.fontSize = `${fontSizePx}px`;
+        this.fixedNameText.style.fontWeight = preset.fontWeight || '700';
+        this.fixedNameText.style.letterSpacing = preset.letterSpacing || '2px';
+        this.fixedNameText.style.color = preset.color || '#FFFFFF';
+        this.fixedNameText.textContent = text;
+        this.fixedNameText.style.display = 'block';
     }
 
     async handlePhotoUpload(file) {
@@ -300,9 +339,11 @@ class FlyersApp {
         this.labelBox.style.left = `${labelX}px`;
         this.labelBox.style.top = `${labelY}px`;
         
-        // Mostra overlay se há texto
+        // Mostra overlay quando houver texto
         if (text) {
             this.labelOverlay.style.display = 'block';
+        } else {
+            this.labelOverlay.style.display = 'none';
         }
     }
 
@@ -364,6 +405,8 @@ class FlyersApp {
         this.labelBox.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             isDragging = true;
+            // Exibe overlay somente durante interação da label
+            this.labelOverlay.style.display = 'block';
             
             const rect = this.labelOverlay.getBoundingClientRect();
             startX = e.clientX - rect.left;
@@ -397,6 +440,8 @@ class FlyersApp {
                 isDragging = false;
                 this.labelEditor.endDrag();
                 this.labelBox.classList.remove('dragging');
+                // Oculta overlay ao finalizar interação
+                this.labelOverlay.style.display = 'none';
             }
         });
         
@@ -405,6 +450,8 @@ class FlyersApp {
         if (resizeHandle) {
             resizeHandle.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
+                // Exibe overlay durante resize
+                this.labelOverlay.style.display = 'block';
                 const labelData = this.labelEditor.getLabelData();
                 this.labelEditor.startResize(e.clientX, e.clientY, labelData.fontSize);
                 
@@ -418,6 +465,8 @@ class FlyersApp {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                     this.labelEditor.endResize();
+                    // Oculta overlay ao finalizar resize
+                    this.labelOverlay.style.display = 'none';
                 };
                 
                 document.addEventListener('mousemove', onMouseMove);

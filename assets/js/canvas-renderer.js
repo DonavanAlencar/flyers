@@ -44,9 +44,7 @@ class CanvasRenderer {
             const templateCtx = templateLayer.getContext('2d');
             templateCtx.drawImage(templateImage, 0, 0, this.canvas.width, this.canvas.height);
 
-            if (labelEditor && labelEditor.getText()) {
-                this.clearNameArea(labelEditor, templateCtx);
-            }
+            // Não limpar a faixa do template para evitar áreas transparentes/brancas
         }
 
         // 1. Desenha primeiro a foto (com máscara aplicada)
@@ -59,10 +57,7 @@ class CanvasRenderer {
             this.ctx.drawImage(templateLayer, 0, 0, this.canvas.width, this.canvas.height);
         }
 
-        // 3. Desenha a label do nome
-        if (labelEditor && labelEditor.getText()) {
-            labelEditor.renderToCanvas(this.ctx);
-        }
+        // 3. Não desenha o nome no canvas (será exibido apenas via overlay HTML)
 
         logger.log('Renderização concluída');
     }

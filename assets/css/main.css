@@ -338,6 +338,19 @@ body::before {
     background: white;
 }
 
+/* Texto fixo do nome (não flutuante) */
+.fixed-name-text {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 2px;
+    pointer-events: none; /* não interfere com drag da foto */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    user-select: none;
+}
+
 /* Label Overlay para Drag */
 .label-overlay {
     position: absolute;
@@ -352,8 +365,8 @@ body::before {
     position: absolute;
     cursor: move;
     pointer-events: all;
-    border: 2px dashed var(--color-border-focus);
-    background: rgba(0, 102, 204, 0.08);
+    border: none;
+    background: transparent;
     border-radius: var(--border-radius);
     min-width: 50px;
     min-height: 30px;
