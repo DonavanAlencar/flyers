@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Flyers - Sistemas Gigantes</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Painel Esquerdo: Configurações -->
+        <div class="config-panel">
+            <h1 class="panel-title">Configurações</h1>
+            
+            <div class="instruction-banner">
+                Preencha os campos, selecione uma imagem e gere o preview. Depois baixe o JPG.
+            </div>
+
+            <div class="form-group">
+                <label for="nome-input">Nome (máx. 37)</label>
+                <input 
+                    type="text" 
+                    id="nome-input" 
+                    class="input-field" 
+                    placeholder="Ex.: JOÃO SILVA" 
+                    maxlength="37"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="template-select">Template</label>
+                <select id="template-select" class="input-field">
+                    <option value="VIP5000">VIP5000</option>
+                    <option value="VIP4000">VIP4000</option>
+                    <option value="VIP3000">VIP3000</option>
+                    <option value="VIP2000">VIP2000</option>
+                    <option value="VIP1000">VIP1000</option>
+                    <option value="RECRUTAMENTO">RECRUTAMENTO</option>
+                    <option value="VENDAS">VENDAS</option>
+                    <option value="DUPLO DIAMANTE 100%">DUPLO DIAMANTE 100%</option>
+                    <option value="DUPLO DIAMANTE 50%">DUPLO DIAMANTE 50%</option>
+                    <option value="TRIPLO DIAMANTE">TRIPLO DIAMANTE</option>
+                    <option value="DIAMANTE">DIAMANTE</option>
+                    <option value="SAFIRA">SAFIRA</option>
+                    <option value="OURO" selected>OURO</option>
+                    <option value="PRATA">PRATA</option>
+                    <option value="MASTER">MASTER</option>
+                    <option value="CONSULTOR">CONSULTOR</option>
+                </select>
+                <div class="template-info" id="template-info">Template: OURO</div>
+            </div>
+
+            <div class="form-group">
+                <label for="photo-input">Foto do participante</label>
+                <div class="file-input-wrapper">
+                    <input 
+                        type="file" 
+                        id="photo-input" 
+                        class="file-input" 
+                        accept="image/jpeg,image/jpg,image/png"
+                    >
+                    <label for="photo-input" class="file-input-label">
+                        <span class="file-button">Escolher arquivo</span>
+                        <span class="file-name" id="file-name">Nenhum arquivo escolhido</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Controles de Zoom/Pan (mostrar quando foto estiver carregada) -->
+            <div class="form-group" id="photo-controls" style="display: none;">
+                <label>Controles da Foto</label>
+                <div class="control-row">
+                    <button type="button" class="control-btn" id="zoom-in-btn">+ Zoom</button>
+                    <button type="button" class="control-btn" id="zoom-out-btn">- Zoom</button>
+                    <button type="button" class="control-btn" id="reset-photo-btn">Resetar</button>
+                </div>
+                <div class="hint-text">Arraste a foto no preview para reposicionar</div>
+            </div>
+
+            <!-- Controles da Label (mostrar quando nome estiver preenchido) -->
+            <div class="form-group" id="label-controls" style="display: none;">
+                <label>Controles da Label</label>
+                <div class="control-row">
+                    <button type="button" class="control-btn" id="font-increase-btn">↑ Fonte</button>
+                    <button type="button" class="control-btn" id="font-decrease-btn">↓ Fonte</button>
+                    <button type="button" class="control-btn" id="reset-label-btn">Resetar Label</button>
+                </div>
+                <div class="hint-text">
+                    Arraste para mover | Redimensione pelas bordas | Setas: mover | Ctrl/Cmd +/-: fonte
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" class="btn btn-preview" id="generate-preview-btn">
+                    Gerar preview
+                </button>
+                <button type="button" class="btn btn-download" id="download-jpg-btn" disabled>
+                    Baixar JPG
+                </button>
+            </div>
+        </div>
+
+        <!-- Painel Direito: Preview -->
+        <div class="preview-panel">
+            <h1 class="panel-title">Preview</h1>
+            
+            <div class="preview-container">
+                <canvas id="preview-canvas"></canvas>
+                
+                <!-- Overlay para drag da label (quando ativo) -->
+                <div id="label-overlay" class="label-overlay" style="display: none;">
+                    <div id="label-box" class="label-box">
+                        <div id="label-text" class="label-text"></div>
+                        <div class="resize-handle"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-info">
+                v3 - Render local (html5 canvas)
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts (ES6 Modules) -->
+    <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
+
